@@ -1,0 +1,1 @@
+-- Fase 1 - CREATE TABLE ops.conversoes_offline_controle (Delta)

@@ -1,0 +1,1 @@
+-- Fase 1 - MERGE INTO com chave composta (lead_id + etapa_funil + plataforma)
