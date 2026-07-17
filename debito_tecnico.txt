@@ -1,0 +1,9 @@
+- Barrar envios do futuro
+- Payload com vários eventos para  Meta não teste
+
+
+
+
+Outros pontos para lembrar: 
+
+- O erro do Bing vem como PartialErrors, não como HTTP de erro. A resposta de sucesso é {"PartialErrors": [...]} — HTTP 200 com a lista de erros por registro dentro. O exemplo oficial da doc chega a assertar que PartialErrors NÃO está vazio no cenário deles. Ou seja: no Bing, HTTP 200 não significa nem "aceito" — significa "processei o lote; olha dentro pra ver o que cada registro sofreu". É uma terceira variação do tema (Meta: 200 + events_received; Google: veremos; Bing: 200 + erros embutidos), e é exatamente o que teu código da Fase 5 vai precisar parsear.

@@ -1,5 +1,5 @@
 # data/seed_gold.py
-# Seed v2 - gold.mkt_conversoes_offline_b2b_mock + staging crua + manifesto de defeitos
+# Seed v3 - gold.mkt_conversoes_offline_b2b_mock + staging crua + manifesto de defeitos
 # Roda num notebook Databricks (Free Edition). Reexecutável: overwrite total.
 
 import hashlib
@@ -120,6 +120,13 @@ for i in range(1, N_LEADS + 1):
         if extra == "gclid":   gclid   = f"gclid_mt_{i:04d}"
         if extra == "fbclid":  fbclid  = f"fbclid_mt_{i:04d}"
         if extra == "msclkid": msclkid = f"msclkid_mt_{i:04d}"
+    
+    # simula URL limpa / import tardio: lead pago SEM click ID (vai de PII)
+    pago_sem_clickid = clickid_tipo is not None and random.random() < 0.15
+    if pago_sem_clickid:
+        gclid = fbclid = msclkid = None
+        rows_seed.append((lead_id, "pago_sem_clickid",
+                          "origem paga mas click ID perdido - exercita fallback probabilistico"))
 
     campaign_id = f"{random.choice(campanhas)}_{random.randint(1,9):03d}"
     produto = random.choice(PRODUTOS)

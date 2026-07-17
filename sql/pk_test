@@ -1,0 +1,137 @@
+-- Estado inicial: tabela vazia
+SELECT COUNT(*)
+FROM ops.conversoes_offline_controle;
+-- espera 0
+--   CONSTRAINT pk_controle PRIMARY KEY (lead_id, etapa_funil, plataforma)
+-- Insere a MESMA chave (lead_id + etapa_funil + plataforma) duas vezes
+INSERT INTO ops.conversoes_offline_controle (
+        lead_id,
+        etapa_funil,
+        plataforma,
+        data_hora_conversao,
+        identificador_usado,
+        status_envio,
+        tentativas,
+        ts_ultimo_envio,
+        dt_atualizacao
+    )
+VALUES (
+        'lead_0001',
+        'Venda',
+        'google',
+        current_timestamp(),
+        'gclid',
+        'aceito',
+        1,
+        current_timestamp(),
+        current_timestamp()
+    );
+INSERT INTO ops.conversoes_offline_controle (
+        lead_id,
+        etapa_funil,
+        plataforma,
+        data_hora_conversao,
+        identificador_usado,
+        status_envio,
+        tentativas,
+        ts_ultimo_envio,
+        dt_atualizacao
+    )
+VALUES (
+        'lead_0001',
+        'Venda',
+        'google',
+        current_timestamp(),
+        'gclid',
+        'aceito',
+        1,
+        current_timestamp(),
+        current_timestamp()
+    );
+-- A prova: duas linhas com a mesma PK convivendo
+SELECT lead_id,
+    etapa_funil,
+    plataforma,
+    COUNT(*) AS qtd
+FROM ops.conversoes_offline_controle
+GROUP BY lead_id,
+    etapa_funil,
+    plataforma;
+-- qtd = 2  →  PK não impediu
+DELETE FROM ops.conversoes_offline_controle
+WHERE lead_id = 'lead_0001';
+/*  MERGE INTO com chave composta no ON (lead_id + etapa_funil + plataforma) e provar que ELE garante a unicidade real: rodar 2x o mesmo insert, contar linhas*/
+-- Confronta o lote origem contra a tabela alvo casando por (lead + etapa + plataforma); onde já existe, atualiza incrementando a tentativa e movendo o último timestamp; onde não existe, cria com tentativa 1 e os dois timestamps iguais.
+MERGE INTO ops.conversoes_offline_controle AS alvo USING (
+    -- lote de envio simulado; na Fase 5 vem do resultado das chamadas de API
+    SELECT 'lead_0001' AS lead_id,
+        'Venda' AS etapa_funil,
+        'google' AS plataforma,
+        current_timestamp() AS data_hora_conversao,
+        'gads_pmax_001' AS campaign_id,
+        CAST(15000.00 AS DECIMAL(18, 2)) AS valor_enviado,
+        'gclid' AS identificador_usado,
+        'aceito' AS status_envio,
+        200 AS http_status,
+        CAST(NULL AS STRING) AS codigo_erro,
+        'OK' AS mensagem_resposta,
+        current_timestamp() AS ts_envio
+) AS origem ON alvo.lead_id = origem.lead_id
+AND alvo.etapa_funil = origem.etapa_funil
+AND alvo.plataforma = origem.plataforma
+WHEN MATCHED THEN
+UPDATE
+SET status_envio = origem.status_envio,
+    http_status = origem.http_status,
+    codigo_erro = origem.codigo_erro,
+    mensagem_resposta = origem.mensagem_resposta,
+    valor_enviado = origem.valor_enviado,
+    identificador_usado = origem.identificador_usado,
+    tentativas = alvo.tentativas + 1,
+    -- incrementa: nova tentativa sobre linha existente
+    ts_ultimo_envio = origem.ts_envio,
+    -- move só o "último"; o primeiro não muda
+    dt_atualizacao = current_timestamp()
+    WHEN NOT MATCHED THEN
+INSERT (
+        lead_id,
+        etapa_funil,
+        plataforma,
+        data_hora_conversao,
+        campaign_id,
+        valor_enviado,
+        identificador_usado,
+        status_envio,
+        http_status,
+        codigo_erro,
+        mensagem_resposta,
+        tentativas,
+        ts_primeiro_envio,
+        ts_ultimo_envio,
+        dt_atualizacao
+    )
+VALUES (
+        origem.lead_id,
+        origem.etapa_funil,
+        origem.plataforma,
+        origem.data_hora_conversao,
+        origem.campaign_id,
+        origem.valor_enviado,
+        origem.identificador_usado,
+        origem.status_envio,
+        origem.http_status,
+        origem.codigo_erro,
+        origem.mensagem_resposta,
+        1,
+        -- primeira tentativa
+        origem.ts_envio,
+        -- ts_primeiro_envio = ts_ultimo_envio nesta 1ª vez
+        origem.ts_envio,
+        current_timestamp()
+    );
+SELECT COUNT(*) AS total,
+    MAX(tentativas) AS tentativas_max
+FROM ops.conversoes_offline_controle
+WHERE lead_id = 'lead_0001';
+SELECT *
+FROM ops.conversoes_offline_controle;
